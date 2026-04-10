@@ -174,20 +174,25 @@ services:
       --email admin@local || true
       "
 
-  metabase:
-    image: metabase/metabase:v0.59.6.1
+  streamlit:
+    image: python:3.11
+    working_dir: /app
+    command: >
+      bash -c "pip install -r requirements.txt &&
+              streamlit run app.py --server.port 8501 --server.address 0.0.0.0"
     ports:
-      - "3000:3000"
+      - "8501:8501"
     volumes:
-      - metabase-data:/metabase-data
+      - ./streamlit:/app
     networks:
       - airflow-net
+    depends_on:
+      - postgres-dwh
 
 volumes:
   postgres-airflow-data:
   postgres-dwh-data:
   minio-data:
-  metabase-data:
 
 networks:
   airflow-net:
