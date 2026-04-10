@@ -9,7 +9,7 @@ x-airflow-common: &airflow-common
     AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql+psycopg2://airflow:airflow@postgres-airflow:5432/airflow
     AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/0
 
-    AIRFLOW__CORE__FERNET_KEY: mysupersecretkey
+    AIRFLOW__CORE__FERNET_KEY: jKDWA6pEAb2iRCeWQGVAdYZBol9dogO0Gvti_spu_B8=
     AIRFLOW__CORE__LOAD_EXAMPLES: "false"
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
 
@@ -75,6 +75,8 @@ services:
     volumes:
       - postgres-dwh-data:/var/lib/postgresql/data
       - ./init-db/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+      - ./init-db/dwh_tables.sql:/docker-entrypoint-initdb.d/02_dwh.sql
+      - ./init-db/analytics_tables.sql:/docker-entrypoint-initdb.d/03_analytics.sql
     networks:
       - airflow-net
 
