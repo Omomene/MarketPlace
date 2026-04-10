@@ -1,7 +1,10 @@
-from flask import Flask, jsonify
+from flask import Flask
 
 app = Flask(__name__)
 
-@app.get("/health")
-def health():
-    return jsonify({"status": "ok"})
+@app.route("/")
+def home():
+    return "API is running"
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
