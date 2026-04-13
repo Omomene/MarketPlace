@@ -20,7 +20,7 @@ Ce projet simule une architecture moderne de data engineering basée sur un pipe
 - Calcul de KPI et détection d’anomalies
 - Visualisation via Streamlit
 
-L’objectif est de reproduire une architecture **Lakehouse simplifiée** avec orchestration Airflow.
+L’objectif est de reproduire une architecture Lakehouse simplifiée avec orchestration Airflow.
 
 ---
 
