@@ -76,7 +76,14 @@ def get_orders():
     if not require_bearer_auth():
         return jsonify({"error": "Unauthorized"}), 401
 
-    date = request.args.get("date", datetime.today().strftime("%Y-%m-%d"))
+    
+    base_date = request.args.get("date")
+
+    if base_date:
+        date = base_date
+    else:
+        # simulate history
+        date = (datetime.today() - timedelta(days=random.randint(0, 2))).strftime("%Y-%m-%d")
 
     orders = []
 
@@ -88,30 +95,31 @@ def get_orders():
         base = product["base_price"]
         quantity = random.randint(1, 5)
 
-        # base revenue
         total = base * quantity
 
-        # seller behavior
         multiplier = SELLER_MULTIPLIERS.get(seller["seller_id"], 1)
 
         # CONTROLLED ANOMALY
         anomaly_factor = 1.0
 
-        # 8% chance of drop anomaly
         if random.random() < 0.08:
             anomaly_factor = 0.4
 
-        # 3% chance of spike anomaly
         if random.random() < 0.03:
             anomaly_factor = 2.0
 
         total_amount = total * multiplier * anomaly_factor
-
+        
         orders.append({
             "order_id": f"O{date.replace('-', '')}{i}",
             "seller_id": seller["seller_id"],
             "customer_id": random.choice(CUSTOMERS)["customer_id"],
             "product_id": product["product_id"],
+            "seller_name": seller["name"],
+            "seller_country": seller["country"],
+            "product_name": product["name"],
+            "product_category": product["category"],
+            "base_price": product["base_price"],
             "quantity": quantity,
             "total_amount": round(total_amount, 2),
             "status": "completed",
