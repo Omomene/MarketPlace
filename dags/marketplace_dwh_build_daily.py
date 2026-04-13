@@ -1,10 +1,12 @@
 from airflow import DAG
 from airflow.providers.standard.operators.python import PythonOperator
+from airflow.hooks.base import BaseHook
 from datetime import datetime
 import psycopg2
 import json
+import boto3
 
-from data_quality_operator import DataQualityOperator  # FIXED IMPORT
+from data_quality_operator import DataQualityOperator
 
 DB_CONFIG = {
     "host": "postgres-dwh",
@@ -15,31 +17,47 @@ DB_CONFIG = {
 }
 
 # -----------------------
-# EXTRACT
+# MINIO CLIENT
+# -----------------------
+def get_minio_client():
+    conn = BaseHook.get_connection("minio_local")
+
+    return boto3.client(
+        "s3",
+        endpoint_url="http://minio:9000",
+        aws_access_key_id=conn.login,
+        aws_secret_access_key=conn.password,
+        region_name="us-east-1"
+    )
+
+
+# -----------------------
+# EXTRACT FROM MINIO
 # -----------------------
 def extract_raw(**context):
     ds = context["ds"]
 
-    conn = psycopg2.connect(**DB_CONFIG)
-    cur = conn.cursor()
+    client = get_minio_client()
+    bucket = "data-lake"
 
-    cur.execute("""
-        SELECT payload
-        FROM raw.raw_orders
-        WHERE dt = %s
-    """, (ds,))
+    key = f"bronze/orders/dt={ds}/data.json"
 
-    rows = cur.fetchall()
+    response = client.get_object(Bucket=bucket, Key=key)
+    content = response["Body"].read().decode("utf-8")
 
-    cur.close()
-    conn.close()
+    payload = json.loads(content)
 
-    # FIX JSON ERROR (already safe now)
-    return [json.loads(r[0]) if isinstance(r[0], str) else r[0] for r in rows]
+    # IMPORTANT: your JSON contains {"date": "...", "orders": [...]}
+    data = payload.get("orders", [])
+
+    if not isinstance(data, list):
+        raise ValueError("Invalid MinIO format: 'orders' must be a list")
+
+    return data
 
 
 # -----------------------
-# DIMENSIONS
+# LOAD DIMENSIONS (SAFE VERSION)
 # -----------------------
 def load_dimensions(**context):
     data = context["ti"].xcom_pull(task_ids="extract_raw")
@@ -49,23 +67,41 @@ def load_dimensions(**context):
 
     for row in data:
 
+        # SELLER DIMENSION
         cur.execute("""
             INSERT INTO dwh.dim_seller (seller_id, name, country, joined_date)
             VALUES (%s, %s, %s, %s)
             ON CONFLICT (seller_id) DO NOTHING
-        """, (row["seller_id"], "unknown", "unknown", None))
+        """, (
+            row.get("seller_id"),
+            row.get("seller_name", "unknown"),
+            row.get("seller_country", "unknown"),
+            None
+        ))
 
+        # CUSTOMER DIMENSION
         cur.execute("""
             INSERT INTO dwh.dim_customer (customer_id, email, city, signup_date)
             VALUES (%s, %s, %s, %s)
             ON CONFLICT (customer_id) DO NOTHING
-        """, (row["customer_id"], "unknown", "unknown", None))
+        """, (
+            row.get("customer_id"),
+            row.get("customer_email", "unknown"),
+            row.get("customer_city", "unknown"),
+            None
+        ))
 
+        # PRODUCT DIMENSION
         cur.execute("""
             INSERT INTO dwh.dim_product (product_id, name, category, base_price)
             VALUES (%s, %s, %s, %s)
             ON CONFLICT (product_id) DO NOTHING
-        """, (row["product_id"], "unknown", "unknown", 0))
+        """, (
+            row.get("product_id"),
+            row.get("product_name", "unknown"),
+            row.get("product_category", "unknown"),
+            0
+        ))
 
     conn.commit()
     cur.close()
@@ -73,16 +109,16 @@ def load_dimensions(**context):
 
 
 # -----------------------
-# FACT
-# -----------------------   
+# LOAD FACT TABLE
+# -----------------------
 def load_fact(**context):
     data = context["ti"].xcom_pull(task_ids="extract_raw")
-    ds = context["ds"]
 
     conn = psycopg2.connect(**DB_CONFIG)
     cur = conn.cursor()
 
     for row in data:
+
         cur.execute("""
             INSERT INTO dwh.fact_orders (
                 order_id, seller_id, customer_id,
@@ -99,18 +135,19 @@ def load_fact(**context):
                 status = EXCLUDED.status
         """, (
             row["order_id"],
-            row["seller_id"],
-            row["customer_id"],
-            row["product_id"],
-            row["dt"],
-            row["quantity"],
-            row["total_amount"],
-            row["status"]
+            row.get("seller_id"),
+            row.get("customer_id"),
+            row.get("product_id"),
+            row.get("dt"),
+            row.get("quantity"),
+            row.get("total_amount"),
+            row.get("status")
         ))
 
     conn.commit()
     cur.close()
     conn.close()
+
 
 # -----------------------
 # DAG
@@ -154,5 +191,4 @@ with DAG(
         python_callable=load_fact,
     )
 
-    # ✅ CORRECT ORDER
-    extract_task >> dq_fact >> load_dims >> load_fact_task   
+    extract_task >> dq_fact >> load_dims >> load_fact_task

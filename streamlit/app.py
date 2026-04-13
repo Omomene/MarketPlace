@@ -4,7 +4,7 @@ import psycopg2
 import plotly.express as px
 
 # ----------------------------------
-# CONFIG
+# CONFIGURATION
 # ----------------------------------
 st.set_page_config(
     page_title="Maelys Marketplace",
@@ -34,7 +34,7 @@ def format_euro(value):
 
 
 # ----------------------------------
-# GLOBAL STYLE
+# STYLE GLOBAL
 # ----------------------------------
 st.markdown("""
 <style>
@@ -43,7 +43,6 @@ body {
     background-color: #F4F6FA;
 }
 
-/* HEADER */
 .header {
     background: linear-gradient(90deg, #2A2A72, #009FFD);
     padding: 25px;
@@ -58,7 +57,6 @@ body {
     font-size: 36px;
 }
 
-/* CARD */
 .card {
     background: white;
     padding: 20px;
@@ -67,7 +65,6 @@ body {
     margin-bottom: 20px;
 }
 
-/* KPI */
 .kpi {
     text-align: center;
 }
@@ -83,7 +80,6 @@ body {
     color: #777;
 }
 
-/* SECTION TITLE */
 .section {
     font-size: 20px;
     font-weight: 600;
@@ -95,18 +91,18 @@ body {
 
 
 # ----------------------------------
-# HEADER
+# EN-TÊTE
 # ----------------------------------
 st.markdown("""
 <div class="header">
     <h1>Maelys Marketplace</h1>
-    <div>Plateforme d'analyse data</div>
+    <div>Plateforme d'analyse de données</div>
 </div>
 """, unsafe_allow_html=True)
 
 
 # ----------------------------------
-# LOAD DATA
+# CHARGEMENT DES DONNÉES
 # ----------------------------------
 df = get_data("SELECT * FROM analytics.seller_revenue_daily")
 
@@ -114,18 +110,23 @@ if df.empty:
     st.warning("Aucune donnée disponible")
     st.stop()
 
-df["dt"] = pd.to_datetime(df["dt"])
-df["dt"] = df["dt"].dt.date
+# rename for UI only
+df = df.rename(columns={
+    "seller_id": "vendeur",
+    "dt": "date"
+})
+
+df["date"] = pd.to_datetime(df["date"]).dt.date
 
 
 # ----------------------------------
-# KPI CARDS
+# KPI
 # ----------------------------------
 col1, col2, col3, col4 = st.columns(4)
 
 total_revenue = df["revenue"].sum()
 avg_revenue = df["revenue"].mean()
-nb_sellers = df["seller_id"].nunique()
+nb_sellers = df["vendeur"].nunique()
 max_revenue = df["revenue"].max()
 
 with col1:
@@ -139,7 +140,7 @@ with col1:
 with col2:
     st.markdown(f"""
     <div class="card kpi">
-        <p>CA moyen</p>
+        <p>Chiffre d'affaires moyen</p>
         <h2>{format_euro(avg_revenue)}</h2>
     </div>
     """, unsafe_allow_html=True)
@@ -162,25 +163,25 @@ with col4:
 
 
 # ----------------------------------
-# REVENUE + TOP SELLERS
+# REVENUS + TOP VENDEURS
 # ----------------------------------
 col1, col2 = st.columns(2)
 
-daily = df.groupby("dt")["revenue"].sum().reset_index()
+daily = df.groupby("date")["revenue"].sum().reset_index()
 
 with col1:
-    st.markdown('<div class="card"><div class="section">Évolution du chiffre d’affaires</div>', unsafe_allow_html=True)
+    st.markdown('<div class="card"><div class="section">Évolution du chiffre d\'affaires</div>', unsafe_allow_html=True)
 
-    fig = px.line(daily, x="dt", y="revenue", markers=True)
+    fig = px.line(daily, x="date", y="revenue", markers=True)
     fig.update_layout(margin=dict(l=10, r=10, t=10, b=10), plot_bgcolor="white")
-    fig.update_xaxes(type="category") 
+    fig.update_xaxes(type="category")
 
     st.plotly_chart(fig, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 
 top_sellers = (
-    df.groupby("seller_id")["revenue"]
+    df.groupby("vendeur")["revenue"]
     .sum()
     .reset_index()
     .sort_values(by="revenue", ascending=False)
@@ -190,31 +191,35 @@ top_sellers = (
 with col2:
     st.markdown('<div class="card"><div class="section">Top vendeurs</div>', unsafe_allow_html=True)
 
-    fig = px.bar(top_sellers, x="seller_id", y="revenue")
+    fig = px.bar(top_sellers, x="vendeur", y="revenue")
     fig.update_layout(margin=dict(l=10, r=10, t=10, b=10))
-    fig.update_xaxes(type="category") 
+    fig.update_xaxes(type="category")
 
     st.plotly_chart(fig, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 
 # ----------------------------------
-# CATEGORY + SELLER DETAIL
+# PRODUITS LES PLUS VENDUS
 # ----------------------------------
-df_categories = get_data("""
-    SELECT p.category, SUM(f.total_amount) AS revenue
+df_products = get_data("""
+    SELECT 
+        p.name AS produit,
+        SUM(f.total_amount) AS revenue
     FROM dwh.fact_orders f
     JOIN dwh.dim_product p ON f.product_id = p.product_id
-    GROUP BY p.category
+    GROUP BY p.name
+    ORDER BY revenue DESC
+    LIMIT 10
 """)
 
 col1, col2 = st.columns(2)
 
 with col1:
-    st.markdown('<div class="card"><div class="section">Performance par catégorie</div>', unsafe_allow_html=True)
+    st.markdown('<div class="card"><div class="section">Top produits</div>', unsafe_allow_html=True)
 
-    if not df_categories.empty:
-        fig = px.bar(df_categories, x="category", y="revenue")
+    if not df_products.empty:
+        fig = px.bar(df_products, x="produit", y="revenue")
         fig.update_layout(margin=dict(l=10, r=10, t=10, b=10))
         st.plotly_chart(fig, use_container_width=True)
     else:
@@ -226,12 +231,12 @@ with col1:
 with col2:
     st.markdown('<div class="card"><div class="section">Détail vendeur</div>', unsafe_allow_html=True)
 
-    seller = st.selectbox("Sélectionner un vendeur", df["seller_id"].unique())
-    seller_df = df[df["seller_id"] == seller]
+    seller = st.selectbox("Sélectionner un vendeur", df["vendeur"].unique())
+    seller_df = df[df["vendeur"] == seller]
 
-    fig = px.line(seller_df, x="dt", y="revenue", markers=True)
+    fig = px.line(seller_df, x="date", y="revenue", markers=True)
     fig.update_layout(margin=dict(l=10, r=10, t=10, b=10))
-    fig.update_xaxes(type="category") 
+    fig.update_xaxes(type="category")
 
     st.plotly_chart(fig, use_container_width=True)
 
@@ -242,7 +247,12 @@ with col2:
 # ANOMALIES
 # ----------------------------------
 df_anomalies = get_data("""
-    SELECT seller_id, dt, value
+    SELECT 
+        seller_id AS vendeur,
+        dt AS date,
+        metric,
+        value,
+        threshold
     FROM analytics.anomalies
     ORDER BY dt DESC
 """)
@@ -258,7 +268,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 
 
 # ----------------------------------
-# DEBUG
+# EXPLORATEUR DE DONNÉES
 # ----------------------------------
 with st.expander("Explorateur de données"):
     st.dataframe(df)

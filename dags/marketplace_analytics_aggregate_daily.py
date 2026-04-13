@@ -12,40 +12,31 @@ DB_CONFIG = {
 }
 
 
-# --------------------------------------
-# BUILD KPI TABLE
-# --------------------------------------
 def build_kpis(**context):
     ds = context["ds"]
 
     conn = psycopg2.connect(**DB_CONFIG)
     cur = conn.cursor()
 
-    # =====================================================
-    # 1. CLEAN DAY (idempotence)
-    # =====================================================
+    # 1. clean day
     cur.execute("""
         DELETE FROM analytics.seller_revenue_daily
         WHERE dt = %s
     """, (ds,))
 
-    # =====================================================
-    # 2. INSERT DAILY REVENUE BASE
-    # =====================================================
+    # 2. daily revenue
     cur.execute("""
         INSERT INTO analytics.seller_revenue_daily (seller_id, dt, revenue)
         SELECT
             seller_id,
             dt,
-            SUM(total_amount) AS revenue
+            SUM(total_amount)
         FROM dwh.fact_orders
         WHERE dt = %s
         GROUP BY seller_id, dt
     """, (ds,))
 
-    # =====================================================
-    # 3. COMPUTE 7-DAY MOVING AVERAGE
-    # =====================================================
+    # 3. rolling avg
     cur.execute("""
         UPDATE analytics.seller_revenue_daily t
         SET avg_7d = sub.avg_7d
@@ -64,9 +55,7 @@ def build_kpis(**context):
           AND t.dt = sub.dt
     """)
 
-    # =====================================================
-    # 4. DROP FLAG RULE
-    # =====================================================
+    # 4. anomaly flag
     cur.execute("""
         UPDATE analytics.seller_revenue_daily
         SET drop_flag =
@@ -84,9 +73,6 @@ def build_kpis(**context):
     conn.close()
 
 
-# --------------------------------------
-# DAG
-# --------------------------------------
 with DAG(
     dag_id="marketplace_analytics_aggregate_daily",
     start_date=datetime(2026, 1, 1),

@@ -1,11 +1,11 @@
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from datetime import datetime
-import requests
 import psycopg2
 import json
 
-API_URL = "http://api-marketplace:5000/orders"
+from hooks.marketplace_api_hook import MarketplaceAPIHook
+from utils.minio_client import MinioClient
 
 DB_CONFIG = {
     "host": "postgres-dwh",
@@ -15,24 +15,26 @@ DB_CONFIG = {
     "port": 5432,
 }
 
-
 # -----------------------------
-# 1. EXTRACT FROM API
+# 1. EXTRACT (WITH HOOK)
 # -----------------------------
 def extract_orders(**context):
-    ds = context["ds"]  # execution date
+    ds = context["ds"]
 
-    response = requests.get(f"{API_URL}?date={ds}")
-    response.raise_for_status()
+    hook = MarketplaceAPIHook()
+    orders = hook.get_orders(ds)
 
-    orders = response.json()
+    # ✅ NEW: MINIO STORAGE
+    minio = MinioClient()
+    minio.upload_json(
+        data={"date": ds, "orders": orders},
+        path_prefix="bronze/orders"
+    )
 
-    # push to next task via XCom
     return orders
 
-
 # -----------------------------
-# 2. LOAD INTO RAW TABLE
+# 2. LOAD RAW
 # -----------------------------
 def load_raw_orders(**context):
     ds = context["ds"]
@@ -41,13 +43,8 @@ def load_raw_orders(**context):
     conn = psycopg2.connect(**DB_CONFIG)
     cur = conn.cursor()
 
-    # 🔁 IDMPOTENCY RULE
-    cur.execute(
-        "DELETE FROM raw.raw_orders WHERE dt = %s",
-        (ds,)
-    )
+    cur.execute("DELETE FROM raw.raw_orders WHERE dt = %s", (ds,))
 
-    # insert raw JSON
     for order in orders:
         cur.execute(
             """
@@ -63,7 +60,7 @@ def load_raw_orders(**context):
 
 
 # -----------------------------
-# DAG DEFINITION
+# DAG
 # -----------------------------
 with DAG(
     dag_id="marketplace_orders_ingest_daily",

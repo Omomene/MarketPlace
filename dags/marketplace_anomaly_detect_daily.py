@@ -11,6 +11,8 @@ DB_CONFIG = {
     "port": 5432,
 }
 
+THRESHOLD = 0.30
+
 
 # -------------------------
 # ANOMALY DETECTION
@@ -21,7 +23,7 @@ def detect_anomalies(**context):
     conn = psycopg2.connect(**DB_CONFIG)
     cur = conn.cursor()
 
-    # Step 1: get today revenue per seller
+    # 1. Get today's revenue per seller
     cur.execute("""
         SELECT seller_id, SUM(total_amount)
         FROM dwh.fact_orders
@@ -31,37 +33,40 @@ def detect_anomalies(**context):
 
     today_rows = cur.fetchall()
 
-    # Step 2: idempotence (clean reruns)
+    # 2. Idempotence (clean rerun)
     cur.execute("""
         DELETE FROM analytics.anomalies
         WHERE dt = %s AND metric = 'revenue_drop'
     """, (ds,))
 
-    THRESHOLD = 0.30
-
+    # 3. Loop sellers
     for seller_id, today_revenue in today_rows:
 
-        # Step 3: 7-day average
+        # IMPORTANT FIX: avoid NULL crashes
+        if today_revenue is None:
+            continue
+
+        # 4. Compute 7-day avg BEFORE today
         cur.execute("""
             SELECT AVG(daily_revenue)
             FROM (
                 SELECT dt, SUM(total_amount) AS daily_revenue
                 FROM dwh.fact_orders
                 WHERE seller_id = %s
-                  AND dt >= %s::date - INTERVAL '7 days'
                   AND dt < %s
+                  AND dt >= %s::date - INTERVAL '7 days'
                 GROUP BY dt
             ) t
         """, (seller_id, ds, ds))
 
         avg_7d = cur.fetchone()[0]
 
-        if not avg_7d:
+        if not avg_7d or avg_7d == 0:
             continue
 
         drop = (avg_7d - today_revenue) / avg_7d
 
-        # Step 4: anomaly rule
+        # 5. Insert anomaly if rule triggered
         if drop > THRESHOLD:
             cur.execute("""
                 INSERT INTO analytics.anomalies (
