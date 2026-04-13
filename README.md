@@ -40,6 +40,8 @@ L’objectif est de reproduire une architecture **Lakehouse simplifiée** avec o
 
 ## Architecture globale
 
+![alt text](<captures/mermaid-diagram .png>)
+
 flowchart LR
 ```
 
@@ -221,10 +223,8 @@ Les données sont générées avec variation temporelle contrôlée afin de simu
 ## Limitations connues
 
 * Données entièrement synthétiques
-* Modèle d’anomalie basé sur règles simples 
-* PostgreSQL non partitionné
-* Utilisation de XCom pour transfert de données (limité en volume)
-* Pas de CI/CD pipeline
+* Donnéees sur une périod d'un seul jour
+* Modèle d’anomalie basé sur une seule date
 * Monitoring absent (Prometheus / Grafana non implémentés)
 
 ---
@@ -233,14 +233,16 @@ Les données sont générées avec variation temporelle contrôlée afin de simu
 
 * Migration vers dbt pour transformations
 * Introduction de Spark pour scalabilité
-* Ajout de ML pour détection d’anomalies avancée
+* Ajout de dates prolongés pour détection d’anomalies 
 * Mise en place de CI/CD GitHub Actions
 * Monitoring Airflow + Prometheus + Grafana
-* Migration vers Snowflake ou BigQuery
 
 ---
 
 ## Résultat final
+
+![alt text](<captures/2026-04-13 06_46_56-.png>)
+![alt text](<captures/2026-04-13 12_51_41-Greenshot.png>) ![alt text](<captures/2026-04-13 12_58_16-.png>) ![alt text](<captures/2026-04-13 12_58_43-.png>) ![alt text](<captures/2026-04-13 12_59_40-Greenshot.png>) ![alt text](<captures/2026-04-13 12_59_56-Greenshot.png>) ![alt text](<captures/2026-04-13 13_00_42-.png>) ![alt text](<captures/2026-04-13 13_01_00-.png>) ![alt text](<captures/2026-04-13 13_01_40-.png>) ![alt text](<captures/2026-04-13 13_01_52-Greenshot.png>) ![alt text](<captures/2026-04-13 13_02_30-.png>) ![alt text](<captures/2026-04-13 13_03_42-.png>) ![alt text](<captures/2026-04-13 13_07_15-Greenshot.png>) ![alt text](<captures/2026-04-13 13_07_36-Greenshot.png>) ![alt text](<captures/2026-04-13 13_15_11-Greenshot.png>) ![alt text](<captures/2026-04-13 13_18_30-Greenshot.png>) ![alt text](<captures/2026-04-13 13_19_00-Greenshot.png>) ![alt text](<captures/2026-04-13 14_35_26-SUJET _ Explorateur de fichiers.png>) ![alt text](<captures/2026-04-13 14_58_13-SUJET _ Explorateur de fichiers.png>)
 
 Le projet permet de :
 
