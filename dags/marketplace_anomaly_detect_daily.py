@@ -14,16 +14,13 @@ DB_CONFIG = {
 THRESHOLD = 0.30
 
 
-# -------------------------
 # ANOMALY DETECTION
-# -------------------------
 def detect_anomalies(**context):
     ds = context["ds"]
 
     conn = psycopg2.connect(**DB_CONFIG)
     cur = conn.cursor()
 
-    # 1. Get today's revenue per seller
     cur.execute("""
         SELECT seller_id, SUM(total_amount)
         FROM dwh.fact_orders
@@ -33,20 +30,18 @@ def detect_anomalies(**context):
 
     today_rows = cur.fetchall()
 
-    # 2. Idempotence (clean rerun)
     cur.execute("""
         DELETE FROM analytics.anomalies
         WHERE dt = %s AND metric = 'revenue_drop'
     """, (ds,))
 
-    # 3. Loop sellers
+
     for seller_id, today_revenue in today_rows:
 
-        # IMPORTANT FIX: avoid NULL crashes
+       
         if today_revenue is None:
             continue
 
-        # 4. Compute 7-day avg BEFORE today
         cur.execute("""
             SELECT AVG(daily_revenue)
             FROM (
@@ -66,7 +61,7 @@ def detect_anomalies(**context):
 
         drop = (avg_7d - today_revenue) / avg_7d
 
-        # 5. Insert anomaly if rule triggered
+
         if drop > THRESHOLD:
             cur.execute("""
                 INSERT INTO analytics.anomalies (
@@ -90,9 +85,6 @@ def detect_anomalies(**context):
     conn.close()
 
 
-# -------------------------
-# DAG
-# -------------------------
 with DAG(
     dag_id="marketplace_anomaly_detect_daily",
     start_date=datetime(2026, 1, 1),

@@ -3,9 +3,7 @@ import pandas as pd
 import psycopg2
 import plotly.express as px
 
-# ----------------------------------
 # CONFIGURATION
-# ----------------------------------
 st.set_page_config(
     page_title="Maelys Marketplace",
     layout="wide",
@@ -33,9 +31,7 @@ def format_euro(value):
     return f"{value:,.0f} €".replace(",", " ")
 
 
-# ----------------------------------
 # STYLE GLOBAL
-# ----------------------------------
 st.markdown("""
 <style>
 
@@ -90,9 +86,8 @@ body {
 """, unsafe_allow_html=True)
 
 
-# ----------------------------------
-# EN-TÊTE
-# ----------------------------------
+
+# HEADER
 st.markdown("""
 <div class="header">
     <h1>Maelys Marketplace</h1>
@@ -101,16 +96,13 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# ----------------------------------
-# CHARGEMENT DES DONNÉES
-# ----------------------------------
+# LOAD DATA
 df = get_data("SELECT * FROM analytics.seller_revenue_daily")
 
 if df.empty:
     st.warning("Aucune donnée disponible")
     st.stop()
 
-# rename for UI only
 df = df.rename(columns={
     "seller_id": "vendeur",
     "dt": "date"
@@ -119,9 +111,7 @@ df = df.rename(columns={
 df["date"] = pd.to_datetime(df["date"]).dt.date
 
 
-# ----------------------------------
 # KPI
-# ----------------------------------
 col1, col2, col3, col4 = st.columns(4)
 
 total_revenue = df["revenue"].sum()
@@ -162,9 +152,8 @@ with col4:
     """, unsafe_allow_html=True)
 
 
-# ----------------------------------
-# REVENUS + TOP VENDEURS
-# ----------------------------------
+
+# REVENUE AND TOP VENDORS
 col1, col2 = st.columns(2)
 
 daily = df.groupby("date")["revenue"].sum().reset_index()
@@ -199,9 +188,7 @@ with col2:
     st.markdown('</div>', unsafe_allow_html=True)
 
 
-# ----------------------------------
-# PRODUITS LES PLUS VENDUS
-# ----------------------------------
+# TOP SELLING PRODUCTS
 df_products = get_data("""
     SELECT 
         p.name AS produit,
@@ -243,9 +230,7 @@ with col2:
     st.markdown('</div>', unsafe_allow_html=True)
 
 
-# ----------------------------------
 # ANOMALIES
-# ----------------------------------
 df_anomalies = get_data("""
     SELECT 
         seller_id AS vendeur,
@@ -267,8 +252,6 @@ else:
 st.markdown('</div>', unsafe_allow_html=True)
 
 
-# ----------------------------------
-# EXPLORATEUR DE DONNÉES
-# ----------------------------------
+# DATA EXPLORATION
 with st.expander("Explorateur de données"):
     st.dataframe(df)

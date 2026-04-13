@@ -29,15 +29,12 @@ class DataQualityOperator(BaseOperator):
             "port": 5432,
         }
 
-    # -----------------------
+
     # CONNECT
-    # -----------------------
     def _connect(self):
         return psycopg2.connect(**self.db_config)
 
-    # -----------------------
-    # NULL CHECK
-    # -----------------------        
+    # NULL CHECK       
     def _check_nulls(self, cur):
         null_conditions = " OR ".join([f"{col} IS NULL" for col in self.pk])
 
@@ -53,9 +50,7 @@ class DataQualityOperator(BaseOperator):
         if cur.fetchone():
             raise ValueError(f"❌ NULL check failed on PK columns in {self.table}")
 
-    # -----------------------
     # DUPLICATES CHECK
-    # -----------------------
     def _check_duplicates(self, cur):
         group_by_cols = ", ".join(self.pk)
 
@@ -73,9 +68,7 @@ class DataQualityOperator(BaseOperator):
                 f"❌ Duplicate keys found in {self.table}: {duplicates[:5]}"
             )
 
-    # -----------------------
     # SCHEMA CHECK
-    # -----------------------
     def _check_schema(self, cur):
         if not self.expected_columns:
             return
@@ -96,9 +89,7 @@ class DataQualityOperator(BaseOperator):
                 f"❌ Schema mismatch in {self.table}. Missing: {missing}"
             )
 
-    # -----------------------
     # EXECUTE
-    # -----------------------
     def execute(self, context):
         conn = self._connect()
         cur = conn.cursor()

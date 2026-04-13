@@ -16,9 +16,7 @@ DB_CONFIG = {
     "port": 5432,
 }
 
-# -----------------------
 # MINIO CLIENT
-# -----------------------
 def get_minio_client():
     conn = BaseHook.get_connection("minio_local")
 
@@ -31,9 +29,7 @@ def get_minio_client():
     )
 
 
-# -----------------------
 # EXTRACT FROM MINIO
-# -----------------------
 def extract_raw(**context):
     ds = context["ds"]
 
@@ -47,7 +43,6 @@ def extract_raw(**context):
 
     payload = json.loads(content)
 
-    # IMPORTANT: your JSON contains {"date": "...", "orders": [...]}
     data = payload.get("orders", [])
 
     if not isinstance(data, list):
@@ -56,9 +51,7 @@ def extract_raw(**context):
     return data
 
 
-# -----------------------
-# LOAD DIMENSIONS (SAFE VERSION)
-# -----------------------
+# LOAD DIMENSIONS
 def load_dimensions(**context):
     data = context["ti"].xcom_pull(task_ids="extract_raw")
 
@@ -108,9 +101,7 @@ def load_dimensions(**context):
     conn.close()
 
 
-# -----------------------
 # LOAD FACT TABLE
-# -----------------------
 def load_fact(**context):
     data = context["ti"].xcom_pull(task_ids="extract_raw")
 
@@ -149,9 +140,6 @@ def load_fact(**context):
     conn.close()
 
 
-# -----------------------
-# DAG
-# -----------------------
 with DAG(
     dag_id="marketplace_dwh_build_daily",
     start_date=datetime(2026, 1, 1),

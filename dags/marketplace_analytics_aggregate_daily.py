@@ -18,13 +18,13 @@ def build_kpis(**context):
     conn = psycopg2.connect(**DB_CONFIG)
     cur = conn.cursor()
 
-    # 1. clean day
+    # clean day
     cur.execute("""
         DELETE FROM analytics.seller_revenue_daily
         WHERE dt = %s
     """, (ds,))
 
-    # 2. daily revenue
+    # daily revenue
     cur.execute("""
         INSERT INTO analytics.seller_revenue_daily (seller_id, dt, revenue)
         SELECT
@@ -36,7 +36,7 @@ def build_kpis(**context):
         GROUP BY seller_id, dt
     """, (ds,))
 
-    # 3. rolling avg
+    # rolling avg
     cur.execute("""
         UPDATE analytics.seller_revenue_daily t
         SET avg_7d = sub.avg_7d
@@ -55,7 +55,7 @@ def build_kpis(**context):
           AND t.dt = sub.dt
     """)
 
-    # 4. anomaly flag
+    # anomaly flag
     cur.execute("""
         UPDATE analytics.seller_revenue_daily
         SET drop_flag =

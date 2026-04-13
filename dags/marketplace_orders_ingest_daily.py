@@ -15,16 +15,14 @@ DB_CONFIG = {
     "port": 5432,
 }
 
-# -----------------------------
-# 1. EXTRACT (WITH HOOK)
-# -----------------------------
+
+# EXTRACT WITH HOOK
 def extract_orders(**context):
     ds = context["ds"]
 
     hook = MarketplaceAPIHook()
     orders = hook.get_orders(ds)
 
-    # ✅ NEW: MINIO STORAGE
     minio = MinioClient()
     minio.upload_json(
         data={"date": ds, "orders": orders},
@@ -33,9 +31,7 @@ def extract_orders(**context):
 
     return orders
 
-# -----------------------------
-# 2. LOAD RAW
-# -----------------------------
+# LOAD RAW
 def load_raw_orders(**context):
     ds = context["ds"]
     orders = context["ti"].xcom_pull(task_ids="extract_orders")
@@ -59,9 +55,6 @@ def load_raw_orders(**context):
     conn.close()
 
 
-# -----------------------------
-# DAG
-# -----------------------------
 with DAG(
     dag_id="marketplace_orders_ingest_daily",
     start_date=datetime(2026, 1, 1),

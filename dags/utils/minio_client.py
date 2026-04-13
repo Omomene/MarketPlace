@@ -12,7 +12,7 @@ class MinioClient:
 
         self.client = boto3.client(
             "s3",
-            endpoint_url="http://minio:9000",  # ✅ FIXED (important)
+            endpoint_url="http://minio:9000", 
             aws_access_key_id=conn.login,
             aws_secret_access_key=conn.password,
             region_name="us-east-1"

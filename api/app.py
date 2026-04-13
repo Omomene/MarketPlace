@@ -4,9 +4,7 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-# -------------------------
-# AUTH CONFIG (SIMPLE MVP)
-# -------------------------
+# AUTH CONFIG
 API_TOKEN = "formation-token-2026"
 
 def require_bearer_auth():
@@ -19,10 +17,7 @@ def require_bearer_auth():
     return token == API_TOKEN
 
 
-# -------------------------
-# MOCK ENTITIES (IMPROVED)
-# -------------------------
-
+# MOCK ENTITIES
 SELLERS = [
     {"seller_id": "S1", "name": "Maison Luxe", "country": "FR"},
     {"seller_id": "S2", "name": "Urban Style", "country": "DE"},
@@ -44,17 +39,13 @@ CUSTOMERS = [
 ]
 
 
-# -------------------------
 # HEALTH CHECK
-# -------------------------
 @app.get("/health")
 def health():
     return {"status": "ok"}
 
 
-# -------------------------
 # SELLERS
-# -------------------------
 @app.get("/sellers")
 def get_sellers():
     if not require_bearer_auth():
@@ -63,9 +54,7 @@ def get_sellers():
     return jsonify(SELLERS)
 
 
-# -------------------------
 # PRODUCTS
-# -------------------------
 @app.get("/products")
 def get_products():
     if not require_bearer_auth():
@@ -74,9 +63,7 @@ def get_products():
     return jsonify(PRODUCTS)
 
 
-# -------------------------
-# ORDERS (ANOMALY READY)
-# -------------------------
+# ORDERS 
 SELLER_MULTIPLIERS = {
     "S1": 1.5,
     "S2": 1.2,
@@ -107,9 +94,7 @@ def get_orders():
         # seller behavior
         multiplier = SELLER_MULTIPLIERS.get(seller["seller_id"], 1)
 
-        # -------------------------
-        # CONTROLLED ANOMALY ENGINE
-        # -------------------------
+        # CONTROLLED ANOMALY
         anomaly_factor = 1.0
 
         # 8% chance of drop anomaly
@@ -136,9 +121,6 @@ def get_orders():
     return jsonify(orders)
 
 
-# -------------------------
-# RUN
-# -------------------------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
     
